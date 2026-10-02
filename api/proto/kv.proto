@@ -8,6 +8,9 @@ service KVService {
   rpc Set(SetRequest) returns (SetResponse);
   rpc Get(GetRequest) returns (GetResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
+
+  rpc Replicate(ReplicateRequest) returns (ReplicateResponse);
+  rpc NodeStatus(NodeStatusRequest) returns (NodeStatusResponse);
 }
 
 message SetRequest {
@@ -34,4 +37,24 @@ message DeleteRequest {
 
 message DeleteResponse {
   bool success = 1;
+}
+
+message ReplicateRequest {
+  string key = 1;
+  string value = 2;
+  string operation = 3;
+  int64 term = 4;
+}
+
+message ReplicateResponse {
+  bool success = 1;
+}
+
+message NodeStatusRequest {
+  int32 node_id = 1;
+}
+
+message NodeStatusResponse {
+  int32 node_id = 1;
+  bool alive = 2;
 }
