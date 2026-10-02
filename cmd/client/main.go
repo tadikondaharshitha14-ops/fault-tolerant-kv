@@ -12,56 +12,71 @@ import (
 	"fault-tolerant-kv/api/proto"
 )
 
-func main() {
+func connect(address string) (*grpc.ClientConn, proto.KVServiceClient) {
 	conn, err := grpc.Dial(
-		"localhost:50051",
+		address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer conn.Close()
+	return conn, proto.NewKVServiceClient(conn)
+}
 
-	client := proto.NewKVServiceClient(conn)
-
+func main() {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		5*time.Second,
 	)
-
 	defer cancel()
 
-	setResp, err := client.Set(ctx, &proto.SetRequest{
+	// Node 1
+	conn1, node1 := connect("localhost:50051")
+	defer conn1.Close()
+
+	setResp, err := node1.Set(ctx, &proto.SetRequest{
 		Key:   "name",
 		Value: "harshitha",
 	})
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("SET:", setResp.Success)
+	fmt.Println("Node 1 SET:", setResp.Success)
 
-	getResp, err := client.Get(ctx, &proto.GetRequest{
+	get1, err := node1.Get(ctx, &proto.GetRequest{
 		Key: "name",
 	})
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("GET:", getResp.Value)
-	fmt.Println("FOUND:", getResp.Found)
+	fmt.Println("Node 1 GET:", get1.Value, "FOUND:", get1.Found)
 
-	deleteResp, err := client.Delete(ctx, &proto.DeleteRequest{
+	// Node 2
+	conn2, node2 := connect("localhost:50052")
+	defer conn2.Close()
+
+	get2, err := node2.Get(ctx, &proto.GetRequest{
 		Key: "name",
 	})
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("DELETE:", deleteResp.Success)
+	fmt.Println("Node 2 GET:", get2.Value, "FOUND:", get2.Found)
+
+	// Node 3
+	conn3, node3 := connect("localhost:50053")
+	defer conn3.Close()
+
+	get3, err := node3.Get(ctx, &proto.GetRequest{
+		Key: "name",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Node 3 GET:", get3.Value, "FOUND:", get3.Found)
 }
