@@ -9,12 +9,15 @@ import (
 
 type Server struct {
 	proto.UnimplementedKVServiceServer
-	store *kv.Store
+
+	store  *kv.Store
+	nodeID int
 }
 
-func NewServer(store *kv.Store) *Server {
+func NewServer(store *kv.Store, nodeID int) *Server {
 	return &Server{
-		store: store,
+		store:  store,
+		nodeID: nodeID,
 	}
 }
 
@@ -52,5 +55,42 @@ func (s *Server) Delete(
 
 	return &proto.DeleteResponse{
 		Success: true,
+	}, nil
+}
+
+func (s *Server) Replicate(
+	ctx context.Context,
+	req *proto.ReplicateRequest,
+) (*proto.ReplicateResponse, error) {
+
+	switch req.GetOperation() {
+	case "SET":
+		s.store.Set(
+			req.GetKey(),
+			req.GetValue(),
+		)
+
+	case "DELETE":
+		s.store.Delete(req.GetKey())
+
+	default:
+		return &proto.ReplicateResponse{
+			Success: false,
+		}, nil
+	}
+
+	return &proto.ReplicateResponse{
+		Success: true,
+	}, nil
+}
+
+func (s *Server) NodeStatus(
+	ctx context.Context,
+	req *proto.NodeStatusRequest,
+) (*proto.NodeStatusResponse, error) {
+
+	return &proto.NodeStatusResponse{
+		NodeId: int32(s.nodeID),
+		Alive:  true,
 	}, nil
 }
