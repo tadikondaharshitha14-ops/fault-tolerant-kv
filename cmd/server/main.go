@@ -1,84 +1,35 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strings"
+	"log"
+	"net"
 
+	"google.golang.org/grpc"
+
+	"fault-tolerant-kv/api/proto"
+	"fault-tolerant-kv/internal/grpcserver"
 	"fault-tolerant-kv/internal/kv"
 )
 
 func main() {
 	store := kv.NewStore()
 
-	fmt.Println("=================================")
-	fmt.Println(" Fault-Tolerant KV Store")
-	fmt.Println("=================================")
-	fmt.Println("Commands:")
-	fmt.Println("  SET key value")
-	fmt.Println("  GET key")
-	fmt.Println("  DELETE key")
-	fmt.Println("  EXIT")
-	fmt.Println()
+	server := grpc.NewServer()
 
-	scanner := bufio.NewScanner(os.Stdin)
+	proto.RegisterKVServiceServer(
+		server,
+		grpcserver.NewServer(store),
+	)
 
-	for {
-		fmt.Print("> ")
+	listener, err := net.Listen("tcp", ":50051")
 
-		if !scanner.Scan() {
-			break
-		}
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		line := strings.TrimSpace(scanner.Text())
+	log.Println("KV gRPC server running on :50051")
 
-		if line == "" {
-			continue
-		}
-
-		parts := strings.SplitN(line, " ", 3)
-
-		switch strings.ToUpper(parts[0]) {
-
-		case "SET":
-			if len(parts) != 3 {
-				fmt.Println("Usage: SET key value")
-				continue
-			}
-
-			store.Set(parts[1], parts[2])
-			fmt.Println("OK")
-
-		case "GET":
-			if len(parts) != 2 {
-				fmt.Println("Usage: GET key")
-				continue
-			}
-
-			value, ok := store.Get(parts[1])
-
-			if !ok {
-				fmt.Println("NOT_FOUND")
-			} else {
-				fmt.Println(value)
-			}
-
-		case "DELETE":
-			if len(parts) != 2 {
-				fmt.Println("Usage: DELETE key")
-				continue
-			}
-
-			store.Delete(parts[1])
-			fmt.Println("OK")
-
-		case "EXIT":
-			fmt.Println("Bye!")
-			return
-
-		default:
-			fmt.Println("Unknown command")
-		}
+	if err := server.Serve(listener); err != nil {
+		log.Fatal(err)
 	}
 }
