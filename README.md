@@ -40,6 +40,4 @@ The system contains three server nodes.
             /             \
         Node 2           Node 3
 
-
-## 5. Project Features
 - 
