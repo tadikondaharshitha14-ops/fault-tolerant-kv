@@ -2,7 +2,7 @@
 
 A simple distributed key-value store built with **Go**, **gRPC**, and
 **Docker**. The project runs multiple server nodes and demonstrates
-storing and retrieving key-value data across nodes, along with basic
+storing and retrieving key-value data across nodes, along with basic 
 node-failure testing.
 
 ## Project Overview
