@@ -11,6 +11,7 @@ import (
 	"fault-tolerant-kv/api/proto"
 	"fault-tolerant-kv/internal/grpcserver"
 	"fault-tolerant-kv/internal/kv"
+	"fault-tolerant-kv/internal/replication"
 )
 
 func main() {
@@ -21,11 +22,19 @@ func main() {
 
 	store := kv.NewStore()
 
+	peers := map[int]string{
+                 1: "kv-node1:50051",
+                 2: "kv-node2:50052",
+                 3: "kv-node3:50053",
+	}
+
+	replicator := replication.NewClient(*nodeID, peers)
+
 	server := grpc.NewServer()
 
 	proto.RegisterKVServiceServer(
 		server,
-		grpcserver.NewServer(store, *nodeID),
+		grpcserver.NewServer(store, *nodeID, replicator),
 	)
 
 	address := ":" + strconv.Itoa(*port)

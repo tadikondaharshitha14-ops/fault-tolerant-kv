@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"google.golang.org/grpc"
@@ -12,71 +11,54 @@ import (
 	"fault-tolerant-kv/api/proto"
 )
 
-func connect(address string) (*grpc.ClientConn, proto.KVServiceClient) {
-	conn, err := grpc.Dial(
-		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return conn, proto.NewKVServiceClient(conn)
-}
-
 func main() {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		5*time.Second,
-	)
-	defer cancel()
-
-	// Node 1
-	conn1, node1 := connect("localhost:50051")
-	defer conn1.Close()
-
-	setResp, err := node1.Set(ctx, &proto.SetRequest{
-		Key:   "name",
-		Value: "harshitha",
-	})
-	if err != nil {
-		log.Fatal(err)
+	nodes := []struct {
+		name    string
+		address string
+	}{
+		{"Node 1", "localhost:50051"},
+		{"Node 2", "localhost:50052"},
+		{"Node 3", "localhost:50053"},
 	}
 
-	fmt.Println("Node 1 SET:", setResp.Success)
+	for _, node := range nodes {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
-	get1, err := node1.Get(ctx, &proto.GetRequest{
-		Key: "name",
-	})
-	if err != nil {
-		log.Fatal(err)
+		conn, err := grpc.DialContext(
+			ctx,
+			node.address,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithBlock(),
+		)
+
+		if err != nil {
+			fmt.Println(node.name, "UNAVAILABLE:", err)
+			cancel()
+			continue
+		}
+
+		client := proto.NewKVServiceClient(conn)
+
+		if node.name == "Node 1" {
+			resp, err := client.Set(ctx, &proto.SetRequest{
+				Key:   "name",
+				Value: "harshitha",
+			})
+			if err != nil {
+				fmt.Println("Node 1 SET failed:", err)
+			} else {
+				fmt.Println("Node 1 SET:", resp.Success)
+			}
+		}
+
+		resp, err := client.Get(ctx, &proto.GetRequest{Key: "name"})
+		if err != nil {
+			fmt.Println(node.name, "GET failed:", err)
+		} else {
+			fmt.Println(node.name, "GET:", resp.Value, "FOUND:", resp.Found)
+		}
+
+		conn.Close()
+		cancel()
 	}
-
-	fmt.Println("Node 1 GET:", get1.Value, "FOUND:", get1.Found)
-
-	// Node 2
-	conn2, node2 := connect("localhost:50052")
-	defer conn2.Close()
-
-	get2, err := node2.Get(ctx, &proto.GetRequest{
-		Key: "name",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Node 2 GET:", get2.Value, "FOUND:", get2.Found)
-
-	// Node 3
-	conn3, node3 := connect("localhost:50053")
-	defer conn3.Close()
-
-	get3, err := node3.Get(ctx, &proto.GetRequest{
-		Key: "name",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Node 3 GET:", get3.Value, "FOUND:", get3.Found)
 }

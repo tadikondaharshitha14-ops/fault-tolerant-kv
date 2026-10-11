@@ -5,19 +5,26 @@ import (
 
 	"fault-tolerant-kv/api/proto"
 	"fault-tolerant-kv/internal/kv"
+	"fault-tolerant-kv/internal/replication"
 )
 
 type Server struct {
 	proto.UnimplementedKVServiceServer
 
-	store  *kv.Store
-	nodeID int
+	store      *kv.Store
+	nodeID     int
+	replicator *replication.Client
 }
 
-func NewServer(store *kv.Store, nodeID int) *Server {
+func NewServer(
+	store *kv.Store,
+	nodeID int,
+	replicator *replication.Client,
+) *Server {
 	return &Server{
-		store:  store,
-		nodeID: nodeID,
+		store:      store,
+		nodeID:     nodeID,
+		replicator: replicator,
 	}
 }
 
@@ -27,6 +34,13 @@ func (s *Server) Set(
 ) (*proto.SetResponse, error) {
 
 	s.store.Set(req.GetKey(), req.GetValue())
+
+	if s.replicator != nil {
+		s.replicator.ReplicateSet(
+			req.GetKey(),
+			req.GetValue(),
+		)
+	}
 
 	return &proto.SetResponse{
 		Success: true,
@@ -53,6 +67,12 @@ func (s *Server) Delete(
 
 	s.store.Delete(req.GetKey())
 
+	if s.replicator != nil {
+		s.replicator.ReplicateDelete(
+			req.GetKey(),
+		)
+	}
+
 	return &proto.DeleteResponse{
 		Success: true,
 	}, nil
@@ -71,7 +91,9 @@ func (s *Server) Replicate(
 		)
 
 	case "DELETE":
-		s.store.Delete(req.GetKey())
+		s.store.Delete(
+			req.GetKey(),
+		)
 
 	default:
 		return &proto.ReplicateResponse{
