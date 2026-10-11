@@ -173,11 +173,3 @@ implementation and the way the nodes are configured.
 -   Document exact Docker commands and port mappings for reproducible
     setup.
 
-## Author
-
-**Harshitha Tadikonda**
-
-## License
-
-No license has been specified yet. Add a `LICENSE` file if you intend to
-publish the project for reuse by others.
